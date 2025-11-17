@@ -24,6 +24,6 @@ python3 server.py
 ### Test Client (Python)
 ```bash
 cd server
-python3 server.py
+python3 test_client.py
 # /quit to test disconnect
 ```
