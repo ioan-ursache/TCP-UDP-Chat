@@ -13,10 +13,17 @@ A cross-platform, multi-protocol chat system using **TCP** and **UDP**.
 - **UDP:** presence announcements (join/leave)
 
 ## Project Layout
-See `/server_python`, `/client_java`, and `/client_cpp`.
+See `/server`, `/client`
 
 ## Setup
 ### Server (Python)
 ```bash
-cd server_python
+cd server
 python3 server.py
+```
+### Test Client (Python)
+```bash
+cd server
+python3 test_client.py
+# /quit to test disconnect
+```
