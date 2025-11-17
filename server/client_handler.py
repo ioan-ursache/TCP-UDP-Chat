@@ -34,6 +34,10 @@ class ClientHandler(threading.Thread):
         try:
             msg = json.loads(raw_msg)
             text = msg.get("text", "")
+            # Detect typing for UDP status broadcasting
+            if text == "_typing_":
+                self.server.broadcast_udp_status("typing", self.username)
+                return
             if text.startswith("/quit"):
                 self.disconnect()
                 return
