@@ -1,14 +1,15 @@
 package com.chat.controller;
 
 import com.chat.client.TCPChatClient;
+import com.chat.client.UDPStatusListener;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
-import org.json.JSONObject;
 
 /**
  * Controller pentru interfața JavaFX Chat
+ * Integrează TCP (mesaje) și UDP (status)
  */
 public class ChatController {
 
@@ -22,10 +23,12 @@ public class ChatController {
     @FXML private Button connectButton;
 
     private TCPChatClient client;
+    private UDPStatusListener udpListener;
+
+    private static final int UDP_PORT = 5001;
 
     /**
      * Inițializare controller
-     * Apelat automat de JavaFX după încărcarea FXML
      */
     @FXML
     public void initialize() {
@@ -36,7 +39,7 @@ public class ChatController {
 
         // Default values
         serverIpField.setText("localhost");
-        serverPortField.setText("8080");
+        serverPortField.setText("5000");
 
         // Setup event handlers
         sendButton.setOnAction(e -> sendMessage());
@@ -49,6 +52,13 @@ public class ChatController {
             }
         });
 
+        // Send typing indicator when user types
+        messageInput.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (client != null && client.isConnected() && !newVal.isEmpty()) {
+                client.sendTypingIndicator();
+            }
+        });
+
         updateStatus("Deconectat", false);
     }
 
@@ -58,61 +68,95 @@ public class ChatController {
     @FXML
     private void toggleConnection() {
         if (client == null || !client.isConnected()) {
-            // Connect
-            String host = serverIpField.getText().trim();
-            String portStr = serverPortField.getText().trim();
-            String username = usernameField.getText().trim();
+            connectToServer();
+        } else {
+            disconnectFromServer();
+        }
+    }
 
-            if (username.isEmpty()) {
-                showAlert("Eroare", "Introduceți un username!");
-                return;
-            }
+    /**
+     * Connect to server
+     */
+    private void connectToServer() {
+        String host = serverIpField.getText().trim();
+        String portStr = serverPortField.getText().trim();
+        String username = usernameField.getText().trim();
 
-            try {
-                int port = Integer.parseInt(portStr);
+        // Validate input
+        if (username.isEmpty()) {
+            showAlert("Eroare", "Introduceți un username!");
+            return;
+        }
 
-                // Create client cu message handler
-                client = new TCPChatClient(this::handleReceivedMessage);
+        if (host.isEmpty()) {
+            showAlert("Eroare", "Introduceți adresa serverului!");
+            return;
+        }
 
-                if (client.connect(host, port, username)) {
-                    updateStatus("Conectat ca " + username, true);
-                    chatArea.appendText("=== Conectat la server " + host + ":" + port + " ===\n");
+        try {
+            int port = Integer.parseInt(portStr);
 
-                    // Disable connection fields
-                    serverIpField.setDisable(true);
-                    serverPortField.setDisable(true);
-                    usernameField.setDisable(true);
-                    connectButton.setText("Deconectare");
+            // Create TCP client
+            client = new TCPChatClient(this::handleTCPMessage);
 
-                    // Enable chat
-                    messageInput.setDisable(false);
-                    sendButton.setDisable(false);
-                    messageInput.requestFocus();
-
-                } else {
-                    showAlert("Eroare", "Nu s-a putut conecta la server!");
+            if (client.connect(host, port, username)) {
+                // Start UDP listener
+                udpListener = new UDPStatusListener(UDP_PORT, this::handleUDPStatus);
+                if (udpListener.start()) {
+                    chatArea.appendText("[UDP] Status listener started\n");
                 }
 
-            } catch (NumberFormatException ex) {
-                showAlert("Eroare", "Port invalid!");
+                // Update UI
+                updateStatus("Conectat ca " + username, true);
+                chatArea.appendText("=== Conectat la " + host + ":" + port + " ===\n");
+
+                // Disable connection fields
+                serverIpField.setDisable(true);
+                serverPortField.setDisable(true);
+                usernameField.setDisable(true);
+                connectButton.setText("Deconectare");
+
+                // Enable chat
+                messageInput.setDisable(false);
+                sendButton.setDisable(false);
+                messageInput.requestFocus();
+
+            } else {
+                showAlert("Eroare", "Nu s-a putut conecta la server!\nVerificați că serverul rulează.");
             }
 
-        } else {
-            // Disconnect
-            client.disconnect();
-            updateStatus("Deconectat", false);
-            chatArea.appendText("=== Deconectat de la server ===\n");
-
-            // Enable connection fields
-            serverIpField.setDisable(false);
-            serverPortField.setDisable(false);
-            usernameField.setDisable(false);
-            connectButton.setText("Conectare");
-
-            // Disable chat
-            messageInput.setDisable(true);
-            sendButton.setDisable(true);
+        } catch (NumberFormatException ex) {
+            showAlert("Eroare", "Port invalid!");
         }
+    }
+
+    /**
+     * Disconnect from server
+     */
+    private void disconnectFromServer() {
+        // Stop UDP listener
+        if (udpListener != null && udpListener.isRunning()) {
+            udpListener.stop();
+        }
+
+        // Disconnect TCP
+        if (client != null) {
+            client.disconnect();
+        }
+
+        // Update UI
+        updateStatus("Deconectat", false);
+        chatArea.appendText("=== Deconectat de la server ===\n");
+
+        // Enable connection fields
+        serverIpField.setDisable(false);
+        serverPortField.setDisable(false);
+        usernameField.setDisable(false);
+        connectButton.setText("Conectare");
+
+        // Disable chat
+        messageInput.setDisable(true);
+        sendButton.setDisable(true);
     }
 
     /**
@@ -122,39 +166,52 @@ public class ChatController {
     private void sendMessage() {
         String message = messageInput.getText().trim();
 
-        if (!message.isEmpty() && client != null && client.isConnected()) {
-            client.sendMessage(message);
-            messageInput.clear();
+        if (message.isEmpty()) {
+            return;
         }
+
+        if (client == null || !client.isConnected()) {
+            showAlert("Eroare", "Nu sunteți conectat la server!");
+            return;
+        }
+
+        // Handle commands
+        if (message.startsWith("/")) {
+            String cmd = message.substring(1).toLowerCase();
+            if (cmd.equals("quit")) {
+                disconnectFromServer();
+                return;
+            } else if (cmd.equals("list")) {
+                client.sendCommand("list");
+                messageInput.clear();
+                return;
+            }
+        }
+
+        // Send regular message
+        client.sendMessage(message);
+
+        // Display own message (echo)
+        chatArea.appendText("You: " + message + "\n");
+        messageInput.clear();
     }
 
     /**
-     * Handler pentru mesaje primite de la server
-     * @param jsonMessage - mesaj în format JSON
+     * Handler pentru mesaje TCP (chat, system)
      */
-    private void handleReceivedMessage(String jsonMessage) {
-        try {
-            // Parse JSON
-            JSONObject json = new JSONObject(jsonMessage);
-            String type = json.getString("type");
-            String user = json.getString("user");
-            String content = json.getString("content");
+    private void handleTCPMessage(String message) {
+        Platform.runLater(() -> {
+            chatArea.appendText(message + "\n");
+        });
+    }
 
-            // Format message
-            String displayMessage;
-            if ("system".equals(type)) {
-                displayMessage = "[SYSTEM] " + content + "\n";
-            } else {
-                displayMessage = user + ": " + content + "\n";
-            }
-
-            // Update chat area
-            Platform.runLater(() -> chatArea.appendText(displayMessage));
-
-        } catch (Exception e) {
-            // Fallback pentru mesaje non-JSON
-            Platform.runLater(() -> chatArea.appendText(jsonMessage + "\n"));
-        }
+    /**
+     * Handler pentru status UDP (join, leave, typing, presence)
+     */
+    private void handleUDPStatus(String statusMessage) {
+        Platform.runLater(() -> {
+            chatArea.appendText(statusMessage + "\n");
+        });
     }
 
     /**
@@ -163,8 +220,8 @@ public class ChatController {
     private void updateStatus(String text, boolean connected) {
         Platform.runLater(() -> {
             statusLabel.setText(text);
-            statusLabel.setStyle(connected ? 
-                "-fx-text-fill: green;" : 
+            statusLabel.setStyle(connected ?
+                "-fx-text-fill: green;" :
                 "-fx-text-fill: red;");
         });
     }
@@ -184,6 +241,9 @@ public class ChatController {
      * Cleanup la închiderea aplicației
      */
     public void shutdown() {
+        if (udpListener != null && udpListener.isRunning()) {
+            udpListener.stop();
+        }
         if (client != null && client.isConnected()) {
             client.disconnect();
         }
