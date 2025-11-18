@@ -1,5 +1,6 @@
 import threading
 import json
+import socket
 from utils.protocol import (
     decode_message, encode_system_message, encode_chat_message,
     validate_message, MSG_LOGIN, MSG_MESSAGE, MSG_COMMAND
