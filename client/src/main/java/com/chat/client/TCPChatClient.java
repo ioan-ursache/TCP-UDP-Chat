@@ -1,13 +1,15 @@
 package com.chat.client;
 
 import javafx.application.Platform;
+import org.json.JSONObject;
+
 import java.io.*;
 import java.net.Socket;
 import java.util.function.Consumer;
 
 /**
  * TCP Client pentru Chat Application
- * Gestionează conexiunea la server și schimbul de mesaje
+ * Implementează protocolul TCP-UDP cu mesaje JSON
  */
 public class TCPChatClient {
     private Socket socket;
@@ -16,6 +18,7 @@ public class TCPChatClient {
     private String username;
     private boolean connected = false;
     private Consumer<String> messageHandler;
+    private Thread receiverThread;
 
     /**
      * Constructor
@@ -38,60 +41,156 @@ public class TCPChatClient {
             socket = new Socket(host, port);
 
             // Setup I/O streams
-            input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            output = new PrintWriter(socket.getOutputStream(), true);
-
-            // Trimite username pentru handshake
-            output.println(username);
+            input = new BufferedReader(new InputStreamReader(socket.getInputStream(), "UTF-8"));
+            output = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), "UTF-8"), true);
 
             connected = true;
-            System.out.println("[CLIENT] Conectat la server: " + host + ":" + port);
+            System.out.println("[CLIENT] Connected to " + host + ":" + port);
 
-            // Start thread pentru primire mesaje
-            Thread receiverThread = new Thread(this::receiveMessages);
+            // Send LOGIN message according to protocol
+            JSONObject loginMsg = new JSONObject();
+            loginMsg.put("type", "login");
+            loginMsg.put("username", username);
+            output.println(loginMsg.toString());
+            System.out.println("[CLIENT] Sent login: " + loginMsg.toString());
+
+            // Start receiver thread
+            receiverThread = new Thread(this::receiveMessages);
             receiverThread.setDaemon(true);
             receiverThread.start();
 
             return true;
 
         } catch (IOException e) {
-            System.err.println("[CLIENT] Eroare conectare: " + e.getMessage());
+            System.err.println("[CLIENT] Connection error: " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }
 
     /**
-     * Trimite mesaj la server
-     * @param message - conținut mesaj
+     * Trimite mesaj de chat la server
+     * @param text - conținut mesaj
      */
-    public void sendMessage(String message) {
-        if (connected && output != null) {
-            output.println(message);
+    public void sendMessage(String text) {
+        if (!connected || output == null) {
+            System.err.println("[CLIENT] Not connected!");
+            return;
+        }
+
+        try {
+            // Create MESSAGE according to protocol
+            JSONObject msg = new JSONObject();
+            msg.put("type", "message");
+            msg.put("from", username);
+            msg.put("text", text);
+
+            String jsonStr = msg.toString();
+            output.println(jsonStr);
+            System.out.println("[CLIENT] Sent: " + jsonStr);
+
+        } catch (Exception e) {
+            System.err.println("[CLIENT] Send error: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Trimite comandă la server
+     * @param command - comandă (ex: "quit", "list")
+     */
+    public void sendCommand(String command) {
+        if (!connected || output == null) {
+            return;
+        }
+
+        try {
+            JSONObject msg = new JSONObject();
+            msg.put("type", "command");
+            msg.put("cmd", command);
+            msg.put("args", new String[]{});
+
+            output.println(msg.toString());
+            System.out.println("[CLIENT] Sent command: " + command);
+
+        } catch (Exception e) {
+            System.err.println("[CLIENT] Command error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Trimite indicator de typing
+     */
+    public void sendTypingIndicator() {
+        if (!connected || output == null) {
+            return;
+        }
+
+        try {
+            JSONObject msg = new JSONObject();
+            msg.put("type", "message");
+            msg.put("from", username);
+            msg.put("text", "_typing_");
+
+            output.println(msg.toString());
+
+        } catch (Exception e) {
+            // Ignore typing indicator errors
         }
     }
 
     /**
      * Thread pentru primire mesaje de la server
-     * Rulează continuu în background
      */
     private void receiveMessages() {
         try {
-            String message;
-            while (connected && (message = input.readLine()) != null) {
-                final String msg = message;
+            String line;
+            while (connected && (line = input.readLine()) != null) {
+                final String message = line;
+                System.out.println("[CLIENT] Received: " + message);
 
-                // Update UI pe JavaFX Application Thread
+                // Parse and format message
+                String formatted = formatMessage(message);
+
+                // Update UI on JavaFX thread
                 Platform.runLater(() -> {
                     if (messageHandler != null) {
-                        messageHandler.accept(msg);
+                        messageHandler.accept(formatted);
                     }
                 });
             }
         } catch (IOException e) {
             if (connected) {
-                System.err.println("[CLIENT] Conexiune pierdută: " + e.getMessage());
+                System.err.println("[CLIENT] Connection lost: " + e.getMessage());
                 disconnect();
             }
+        }
+    }
+
+    /**
+     * Formatează mesajul JSON pentru afișare
+     */
+    private String formatMessage(String jsonStr) {
+        try {
+            JSONObject msg = new JSONObject(jsonStr);
+            String type = msg.getString("type");
+
+            switch (type) {
+                case "system":
+                    return "[SYSTEM] " + msg.getString("text");
+
+                case "message":
+                    String from = msg.getString("from");
+                    String text = msg.getString("text");
+                    return from + ": " + text;
+
+                default:
+                    return jsonStr;
+            }
+
+        } catch (Exception e) {
+            // If not valid JSON, return as-is
+            return jsonStr;
         }
     }
 
@@ -99,23 +198,32 @@ public class TCPChatClient {
      * Deconectare de la server
      */
     public void disconnect() {
+        if (!connected) {
+            return;
+        }
+
         connected = false;
 
         try {
+            // Send quit command
+            if (output != null) {
+                sendCommand("quit");
+            }
+
+            // Close streams
             if (output != null) output.close();
             if (input != null) input.close();
             if (socket != null) socket.close();
 
-            System.out.println("[CLIENT] Deconectat de la server");
+            System.out.println("[CLIENT] Disconnected");
 
         } catch (IOException e) {
-            System.err.println("[CLIENT] Eroare la deconectare: " + e.getMessage());
+            System.err.println("[CLIENT] Disconnect error: " + e.getMessage());
         }
     }
 
     /**
      * Verifică dacă clientul este conectat
-     * @return true dacă este conectat
      */
     public boolean isConnected() {
         return connected && socket != null && !socket.isClosed();
