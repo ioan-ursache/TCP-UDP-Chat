@@ -119,7 +119,7 @@ public class TCPChatClient {
     }
 
     /**
-     * Trimite indicator de typing
+     * Trimite indicator de scriere
      */
     public void sendTypingIndicator() {
         if (!connected || output == null) {

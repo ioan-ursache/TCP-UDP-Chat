@@ -2,39 +2,26 @@
 
 A cross-platform chat application demonstrating **hybrid TCP/UDP network architecture**:
 
-- **TCP (Reliable)**: Chat messages, login, commands - guaranteed delivery
-- **UDP (Fast)**: Status broadcasts - join/leave/typing/presence indicators
+- **TCP (Reliability)**: Chat messages, login, commands
+- **UDP (Speed)**: Status broadcasts - join/leave/typing/presence indicators
 
 ## Features
 
 ### Core Functionality
 
-✅ **Username-based messaging** (not IP addresses)  
-✅ **Cross-platform support** (Java client ↔ Python server/client)  
-✅ **Reliable chat delivery** via TCP  
-✅ **Fast status updates** via UDP broadcast  
-✅ **JSON protocol** for interoperability  
-✅ **Multi-client support** with thread-safe operations  
+**Username-based messaging** (not IP addresses)  
+**Cross-platform support** (Java client ↔ Python server/client)  
+**Reliable chat delivery** via TCP  
+**Fast status updates** via UDP broadcast  
+**JSON protocol** for interoperability  
+**Multi-client support** with thread-safe operations  
 
 ### Status Features (UDP)
 
-- 🟢 **User joined** - Instant network broadcast
-- 🔴 **User left** - Disconnect notifications
-- ✏️ **Typing indicators** - Real-time typing status
-- 👥 **Presence heartbeat** - Active user list (every 5s)
-
-## Architecture
-
-```
-┌─────────────┐         TCP (5000)          ┌─────────────┐
-│   Client    │◄──────────────────────────►│   Server    │
-│  (Java/Py)  │   Reliable Messages         │  (Python)   │
-└─────────────┘                              └─────────────┘
-       ▲                                            │
-       │              UDP (5001)                    │
-       └────────────────────────────────────────────┘
-              Fast Status Broadcasts
-```
+- **User joined** - Instant network broadcast
+- **User left** - Disconnect notifications
+- **Typing indicators** - Real-time typing status
+- **Presence heartbeat** - Active user list (every 5s)
 
 ### TCP Channel (Port 5000)
 
@@ -74,7 +61,7 @@ cd server
 python server.py
 ```
 
-Output:
+Expected Output:
 ```
 [SERVER] TCP listening on 0.0.0.0:5000
 [SERVER] UDP broadcasting on port 5001
@@ -92,6 +79,7 @@ Or on Windows:
 cd client
 mvnw.cmd clean javafx:run
 ```
+###### Though, I recommend just running it directly in IntelliJ
 
 ### Running the Python Test Client
 
@@ -110,13 +98,13 @@ See [PROTOCOL.md](PROTOCOL.md) for complete protocol documentation.
 
 ```json
 // Login
-{"type": "login", "username": "Alice"}
+{"type": "login", "username": "Ioan"}
 
 // Chat message
-{"type": "message", "from": "Alice", "text": "Hello!"}
+{"type": "message", "from": "Ioan", "text": "Hello!"}
 
 // System notification
-{"type": "system", "text": "Alice joined the chat."}
+{"type": "system", "text": "Ioan joined the chat."}
 
 // Command
 {"type": "command", "cmd": "quit", "args": []}
@@ -126,17 +114,17 @@ See [PROTOCOL.md](PROTOCOL.md) for complete protocol documentation.
 
 ```json
 // Status update
-{"type": "status", "status": "join", "user": "Alice"}
+{"type": "status", "status": "join", "user": "Ioan"}
 
 // Presence heartbeat
-{"type": "status", "status": "presence", "users": ["Alice", "Bob"]}
+{"type": "status", "status": "presence", "users": ["Ioan", "Ionut"]}
 ```
 
 ## Usage
 
 ### Java Client GUI
 
-1. Enter server IP (default: `localhost`)
+1. Enter server IP (default: `localhost`) - use ipconfig (Windows) or ifconfig (Linux), depending on where the server is hosted.
 2. Enter port (default: `5000`)
 3. Enter your username
 4. Click "Conectare"
@@ -182,8 +170,11 @@ TCP-UDP-Chat/
 │
 └── PROTOCOL.md            # Protocol documentation
 ```
+###### - generated for ease of reference
 
 ## Testing
+
+The following present some test scenarios that I've found interesting.
 
 ### Test Scenario 1: Cross-Platform Communication
 
@@ -196,20 +187,11 @@ TCP-UDP-Chat/
 ### Test Scenario 2: Multiple Clients
 
 1. Start server
-2. Connect 3+ clients with different usernames
+2. Connect 2+ clients with different usernames
 3. Send messages from any client
 4. Verify all clients receive messages
 5. Disconnect one client
 6. Verify others receive leave notification
-
-### Test Scenario 3: Protocol Validation
-
-1. Connect client without sending LOGIN
-   - ✅ Server should reject after timeout
-2. Send invalid JSON
-   - ✅ Server should log warning, continue
-3. Send duplicate username
-   - ✅ Server should reject LOGIN
 
 ## Troubleshooting
 
@@ -219,25 +201,6 @@ TCP-UDP-Chat/
 - Check firewall settings
 - Verify port 5000 is not in use
 
-### "Address already in use" (WinError 10048)
-
-```bash
-# On Windows:
-netstat -ano | findstr :5000
-taskkill /PID <process_id> /F
-
-# On Linux/Mac:
-lsof -i :5000
-kill -9 <PID>
-```
-
-### Messages not appearing
-
-- Check protocol format (see PROTOCOL.md)
-- Verify JSON is valid
-- Ensure newline termination for TCP
-- Check server logs for errors
-
 ### UDP broadcasts not received
 
 - Verify UDP port 5001 is open
@@ -246,65 +209,10 @@ kill -9 <PID>
 
 ## Cross-Platform Compatibility
 
-✅ **Windows ↔ Linux** - Fully tested  
-✅ **Java ↔ Python** - Protocol-compliant  
-✅ **IPv4 networks** - Full support  
-⚠️ **IPv6** - Not yet tested  
+**Windows ↔ Linux** - Fully tested  
+**Java ↔ Python** - Protocol-compliant
 
 ## Features Implemented
-
-### Phase 1 (Completed)
-
-- [x] TCP reliable message delivery
-- [x] UDP fast status broadcasting
-- [x] Username-based messaging
-- [x] Protocol enforcement across platforms
-- [x] Cross-platform testing (Java/Python, Windows/Linux)
-- [x] Proper connection/disconnection handling
-- [x] Thread-safe client management
-- [x] JSON protocol with validation
-
-### Future Enhancements
-
-- [ ] Private messaging
-- [ ] Multiple chat rooms
-- [ ] Message history
-- [ ] File transfer
-- [ ] TLS/DTLS encryption
-- [ ] User authentication
-- [ ] GUI improvements (emoji, formatting)
-
-## Development
-
-### Running Tests
-
-**Server tests**:
-```bash
-cd server
-python -m pytest tests/  # (when test suite is added)
-```
-
-**Client tests**:
-```bash
-cd client
-./mvnw test
-```
-
-### Building Java Client JAR
-
-```bash
-cd client
-./mvnw clean package
-java -jar target/client-1.0-SNAPSHOT.jar
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
 
 ## License
 
@@ -315,20 +223,3 @@ MIT License - See [LICENSE](LICENSE) file for details.
 - Built as a network programming learning project
 - Demonstrates TCP vs UDP trade-offs in real applications
 - Cross-platform compatibility showcase
-
-## Version History
-
-### v2.0.0 (tcp-udp-enhancement branch)
-
-- ✨ Implemented username-based messaging
-- ✨ Added strict JSON protocol
-- ✨ UDP status broadcasting
-- 🐛 Fixed message validation issues
-- 🐛 Fixed cross-platform compatibility
-- 📚 Complete protocol documentation
-
-### v1.0.0 (addition branch)
-
-- ✅ Basic TCP/UDP structure
-- ✅ Initial Java and Python clients
-- ✅ Connection establishment
