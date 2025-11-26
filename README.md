@@ -90,8 +90,6 @@ python test_client.py
 
 ## Protocol Specification
 
-See [PROTOCOL.md](PROTOCOL.md) for complete protocol documentation.
-
 ### Quick Reference
 
 **TCP Messages** (JSON + newline):
@@ -151,26 +149,23 @@ Enter username when prompted, then type messages.
 
 ```
 TCP-UDP-Chat/
-├── server/                 # Python server
-│   ├── server.py          # Main server (TCP + UDP)
-│   ├── client_handler.py  # Client connection handler
-│   ├── chat_room.py       # Chat room management
-│   ├── test_client.py     # Python test client
-│   └── utils/
-│       └── protocol.py    # Protocol definitions
-│
-├── client/                # Java client
-│   ├── src/main/java/com/chat/
-│   │   ├── client/
-│   │   │   ├── TCPChatClient.java    # TCP client implementation
-│   │   │   └── UDPStatusListener.java # UDP status receiver
-│   │   └── controller/
-│   │       └── ChatController.java   # JavaFX controller
-│   └── pom.xml            # Maven dependencies
-│
-└── PROTOCOL.md            # Protocol documentation
+-- server/
+    -- server.py
+    -- client-handler.py
+    -- chat-room.py
+    -- test_client.py
+    -- utils/
+        -- protocol.py
+        
+-- client/
+    -- src/main/java/com/chat/
+        -- client/
+            -- TCPChatClient.java
+            -- UDPStatusListener.java
+        -- controller/
+            -- ChatController.java
+-- PROTOCOL.md
 ```
-###### - generated for ease of reference
 
 ## Testing
 
@@ -199,7 +194,7 @@ The following present some test scenarios that I've found interesting.
 
 - Ensure server is running
 - Check firewall settings
-- Verify port 5000 is not in use
+- Verify port 5000 (or any chosen port tbh) is not in use
 
 ### UDP broadcasts not received
 
