@@ -13,11 +13,11 @@ import java.util.function.Consumer;
  * Primește mesaje de tip join/leave/typing/presence
  */
 public class UDPStatusListener {
-    private DatagramSocket socket;
-    private int port;
-    private boolean running = false;
-    private Thread listenerThread;
-    private Consumer<String> statusHandler;
+    private DatagramSocket socket; // UDP socket
+    private int port; // port UDP
+    private boolean running = false; // marks status of listener
+    private Thread listenerThread; // thread for listening UDP packets
+    private Consumer<String> statusHandler; // callback for status updates
 
     /**
      * Constructor
@@ -30,20 +30,20 @@ public class UDPStatusListener {
     }
 
     /**
-     * Start listening for UDP broadcasts
+     * Asculta pentru status broadcasts UDP
      */
     public boolean start() {
         try {
-            socket = new DatagramSocket(port);
-            socket.setBroadcast(true);
-            socket.setReuseAddress(true);
+            socket = new DatagramSocket(port); // create UDP socket
+            socket.setBroadcast(true); // allow broadcasting
+            socket.setReuseAddress(true); // useful for before binding to the same port
             running = true;
 
             System.out.println("[UDP] Listening on port " + port);
 
-            listenerThread = new Thread(this::listen);
-            listenerThread.setDaemon(true);
-            listenerThread.start();
+            listenerThread = new Thread(this::listen); // add thread
+            listenerThread.setDaemon(true); // sets Thread as Daemon, it will not work in the background of the client
+            listenerThread.start(); // start thread
 
             return true;
 
@@ -54,15 +54,16 @@ public class UDPStatusListener {
     }
 
     /**
-     * Listen for UDP packets
+     * Asculta pentru pachete UDP
      */
     private void listen() {
-        byte[] buffer = new byte[1024];
+        byte[] buffer = new byte[1024]; // sets buffer size
 
         while (running) {
             try {
-                DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-                socket.receive(packet);
+                // while program is running, receive & handle UDP packets, otherwise exit
+                DatagramPacket packet = new DatagramPacket(buffer, buffer.length); // create UDP packet
+                socket.receive(packet); // receive UDP packet from broadcast
 
                 String data = new String(packet.getData(), 0, packet.getLength(), "UTF-8");
                 handleStatusMessage(data);
@@ -76,16 +77,19 @@ public class UDPStatusListener {
     }
 
     /**
-     * Handle incoming status message
+     * Tratarea mesajului de status UDP
      */
     private void handleStatusMessage(String jsonStr) {
         try {
+            // Parsing the JSON message
             JSONObject msg = new JSONObject(jsonStr);
 
+            // Check status type
             if (!"status".equals(msg.getString("type"))) {
                 return;
             }
 
+            // Handle status message based on its type
             String status = msg.getString("status");
             String formatted = null;
 
@@ -116,11 +120,12 @@ public class UDPStatusListener {
                     break;
             }
 
+            // If not null, the formatted string will be processed into one single message and sent to the UI
             if (formatted != null) {
                 final String message = formatted;
                 Platform.runLater(() -> {
                     if (statusHandler != null) {
-                        statusHandler.accept(message);
+                        statusHandler.accept(message); // hence we have an accept
                     }
                 });
             }

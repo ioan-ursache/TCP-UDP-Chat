@@ -63,7 +63,7 @@ public class ChatController {
     }
 
     /**
-     * Toggle connection to server
+     * Activeaza conexiunea la server
      */
     @FXML
     private void toggleConnection() {
@@ -75,7 +75,7 @@ public class ChatController {
     }
 
     /**
-     * Connect to server
+     * Conexiune server
      */
     private void connectToServer() {
         String host = serverIpField.getText().trim();
@@ -131,7 +131,7 @@ public class ChatController {
     }
 
     /**
-     * Disconnect from server
+     * Deconectare de la server
      */
     private void disconnectFromServer() {
         // Stop UDP listener
@@ -227,7 +227,7 @@ public class ChatController {
     }
 
     /**
-     * Show alert dialog
+     * Arate dialog alerta
      */
     private void showAlert(String title, String content) {
         Alert alert = new Alert(Alert.AlertType.ERROR);

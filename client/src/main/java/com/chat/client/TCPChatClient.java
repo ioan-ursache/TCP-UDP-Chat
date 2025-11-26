@@ -12,13 +12,13 @@ import java.util.function.Consumer;
  * Implementează protocolul TCP-UDP cu mesaje JSON
  */
 public class TCPChatClient {
-    private Socket socket;
-    private BufferedReader input;
-    private PrintWriter output;
-    private String username;
-    private boolean connected = false;
-    private Consumer<String> messageHandler;
-    private Thread receiverThread;
+    private Socket socket; // socket
+    private BufferedReader input; // input stream
+    private PrintWriter output; // output stream
+    private String username; // connected user
+    private boolean connected = false; // marks active connection
+    private Consumer<String> messageHandler; // callback for message processing
+    private Thread receiverThread; // thread for receiving messages
 
     /**
      * Constructor
