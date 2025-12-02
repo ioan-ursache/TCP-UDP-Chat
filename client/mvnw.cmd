@@ -60,10 +60,18 @@ set ERROR_CODE=0
 @REM ==== START VALIDATION ====
 if not "%JAVA_HOME%" == "" goto OkJHome
 
+@REM JAVA_HOME is not set — try to find Java on PATH as a fallback
+where java >NUL 2>&1
+if %ERRORLEVEL%==0 (
+    set MAVEN_JAVA_EXE=java
+    goto init
+)
+
 echo.
-echo Error: JAVA_HOME not found in your environment. >&2
-echo Please set the JAVA_HOME variable in your environment to match the >&2
-echo location of your Java installation. >&2
+echo Error: JAVA_HOME not found in your environment, and no 'java' executable was found on PATH. >&2
+echo Please install a JDK (17+) and either: >&2
+echo   - set JAVA_HOME to your JDK folder, or >&2
+echo   - add the JDK's bin folder to your PATH. >&2
 echo.
 goto error
 
@@ -73,8 +81,17 @@ if exist "%JAVA_HOME%\bin\java.exe" goto init
 echo.
 echo Error: JAVA_HOME is set to an invalid directory. >&2
 echo JAVA_HOME = "%JAVA_HOME%" >&2
-echo Please set the JAVA_HOME variable in your environment to match the >&2
-echo location of your Java installation. >&2
+echo Attempting to use 'java' from PATH instead. >&2
+@REM Try PATH fallback if JAVA_HOME appears invalid
+where java >NUL 2>&1
+if %ERRORLEVEL%==0 (
+    echo Warning: Falling back to Java from PATH because "%JAVA_HOME%\bin\java.exe" was not found. >&2
+    set MAVEN_JAVA_EXE=java
+    goto init
+)
+
+echo Please set the JAVA_HOME variable in your environment to match the location of your Java installation, >&2
+echo or ensure the JDK's bin folder is on your PATH. >&2
 echo.
 goto error
 
@@ -116,7 +133,8 @@ for /F "usebackq delims=" %%a in ("%MAVEN_PROJECTBASEDIR%\.mvn\jvm.config") do s
 
 :endReadAdditionalConfig
 
-SET MAVEN_JAVA_EXE="%JAVA_HOME%\bin\java.exe"
+@REM If not already set by a PATH fallback above, use JAVA_HOME
+if "%MAVEN_JAVA_EXE%"=="" SET MAVEN_JAVA_EXE="%JAVA_HOME%\bin\java.exe"
 set WRAPPER_JAR="%MAVEN_PROJECTBASEDIR%\.mvn\wrapper\maven-wrapper.jar"
 set WRAPPER_LAUNCHER=org.apache.maven.wrapper.MavenWrapperMain
 
